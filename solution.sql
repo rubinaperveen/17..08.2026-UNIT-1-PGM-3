@@ -9,3 +9,12 @@ USE CollegeDB;
 
 
 -- Display modified table structure
+USE CollegeDB;
+
+ALTER TABLE Student
+ADD Email VARCHAR(30);
+
+ALTER TABLE Student
+ADD PhoneNumber INT;
+
+DESCRIBE Student;
