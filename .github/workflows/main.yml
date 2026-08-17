@@ -1,0 +1,203 @@
+name: Program 3 - ALTER Student Table Auto Grading
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+
+  grade:
+
+    runs-on: ubuntu-latest
+
+    services:
+
+      mysql:
+        image: mysql:8.0
+
+        env:
+          MYSQL_ROOT_PASSWORD: root
+
+        ports:
+          - 3306:3306
+
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+
+      # ---------------------------------------
+      # STEP 1
+      # ---------------------------------------
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      # ---------------------------------------
+      # STEP 2
+      # ---------------------------------------
+
+      - name: Install MySQL Client
+        run: |
+
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+
+      # ---------------------------------------
+      # STEP 3
+      # ---------------------------------------
+
+      - name: Check Required Files
+        run: |
+
+          test -f solution.sql
+          test -f setup.sql
+          test -f tests/test.sh
+
+          echo "All required files are available."
+
+
+      # ---------------------------------------
+      # STEP 4
+      # ---------------------------------------
+
+      - name: Wait for MySQL
+        run: |
+
+          for i in {1..30}
+          do
+
+            if mysqladmin ping \
+              -h 127.0.0.1 \
+              -P 3306 \
+              -u root \
+              -proot \
+              --protocol=tcp \
+              --silent
+
+            then
+
+              echo "MySQL is ready."
+              exit 0
+
+            fi
+
+            echo "Waiting for MySQL..."
+            sleep 2
+
+          done
+
+          echo "MySQL failed to start."
+          exit 1
+
+
+      # ---------------------------------------
+      # STEP 5
+      # ---------------------------------------
+
+      - name: Create Existing Student Table
+        run: |
+
+          echo "Creating CollegeDB and Student table..."
+
+          mysql \
+            -h 127.0.0.1 \
+            -P 3306 \
+            -u root \
+            -proot \
+            --protocol=tcp \
+            < setup.sql
+
+          echo "CollegeDB and Student table created."
+
+
+      # ---------------------------------------
+      # STEP 6
+      # ---------------------------------------
+
+      - name: Display Original Student Table
+        run: |
+
+          echo "========== ORIGINAL TABLE =========="
+
+          mysql \
+            -h 127.0.0.1 \
+            -P 3306 \
+            -u root \
+            -proot \
+            --protocol=tcp \
+            -e "USE CollegeDB; DESCRIBE Student;"
+
+
+      # ---------------------------------------
+      # STEP 7
+      # ---------------------------------------
+
+      - name: Execute Student SQL
+        run: |
+
+          echo "========== STUDENT SOLUTION =========="
+
+          cat solution.sql
+
+          echo "======================================="
+
+          mysql \
+            -h 127.0.0.1 \
+            -P 3306 \
+            -u root \
+            -proot \
+            --protocol=tcp \
+            < solution.sql
+
+          echo "Student SQL executed successfully."
+
+
+      # ---------------------------------------
+      # STEP 8
+      # ---------------------------------------
+
+      - name: Display Modified Student Table
+        run: |
+
+          echo "========== MODIFIED TABLE =========="
+
+          mysql \
+            -h 127.0.0.1 \
+            -P 3306 \
+            -u root \
+            -proot \
+            --protocol=tcp \
+            -e "USE CollegeDB; DESCRIBE Student;"
+
+
+      # ---------------------------------------
+      # STEP 9
+      # ---------------------------------------
+
+      - name: Run Auto Grading
+        run: |
+
+          chmod +x tests/test.sh
+
+          ./tests/test.sh
+
+
+      # ---------------------------------------
+      # STEP 10
+      # ---------------------------------------
+
+      - name: Grading Completed
+        if: success()
+        run: |
+
+          echo ""
+          echo "=========================================="
+          echo "🎉 PROGRAM 3 COMPLETED SUCCESSFULLY"
+          echo "🎉 ALL 6 TEST CASES PASSED"
+          echo "=========================================="
