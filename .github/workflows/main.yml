@@ -5,73 +5,38 @@ on:
   workflow_dispatch:
 
 jobs:
-
   grade:
 
     runs-on: ubuntu-latest
 
     services:
-
       mysql:
         image: mysql:8.0
-
         env:
           MYSQL_ROOT_PASSWORD: root
-
+          MYSQL_DATABASE: CollegeDB
         ports:
           - 3306:3306
-
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
-          --health-interval=10s
+          --health-interval=5s
           --health-timeout=5s
-          --health-retries=30
+          --health-retries=20
 
     steps:
-
-      # ---------------------------------------
-      # STEP 1
-      # ---------------------------------------
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-
-      # ---------------------------------------
-      # STEP 2
-      # ---------------------------------------
-
       - name: Install MySQL Client
         run: |
-
           sudo apt-get update
           sudo apt-get install -y mysql-client
 
-
-      # ---------------------------------------
-      # STEP 3
-      # ---------------------------------------
-
-      - name: Check Required Files
-        run: |
-
-          test -f solution.sql
-          test -f setup.sql
-          test -f tests/test.sh
-
-          echo "All required files are available."
-
-
-      # ---------------------------------------
-      # STEP 4
-      # ---------------------------------------
-
       - name: Wait for MySQL
         run: |
-
           for i in {1..30}
           do
-
             if mysqladmin ping \
               -h 127.0.0.1 \
               -P 3306 \
@@ -79,52 +44,39 @@ jobs:
               -proot \
               --protocol=tcp \
               --silent
-
             then
-
               echo "MySQL is ready."
-              exit 0
-
+              break
             fi
 
             echo "Waiting for MySQL..."
             sleep 2
-
           done
 
-          echo "MySQL failed to start."
-          exit 1
-
-
-      # ---------------------------------------
-      # STEP 5
-      # ---------------------------------------
-
-      - name: Create Existing Student Table
+      - name: Create Student Table
         run: |
-
-          echo "Creating CollegeDB and Student table..."
-
           mysql \
             -h 127.0.0.1 \
             -P 3306 \
             -u root \
             -proot \
             --protocol=tcp \
-            < setup.sql
+            CollegeDB <<'SQL'
 
-          echo "CollegeDB and Student table created."
+          CREATE TABLE Student (
+              StudentID INT PRIMARY KEY,
+              StudentName VARCHAR(20),
+              DOB DATE,
+              Gender VARCHAR(10),
+              DepartmentID INT
+          );
 
+          SQL
 
-      # ---------------------------------------
-      # STEP 6
-      # ---------------------------------------
+          echo "Student table created successfully."
 
-      - name: Display Original Student Table
+      - name: Show Original Student Table
         run: |
-
-          echo "========== ORIGINAL TABLE =========="
-
           mysql \
             -h 127.0.0.1 \
             -P 3306 \
@@ -133,39 +85,29 @@ jobs:
             --protocol=tcp \
             -e "USE CollegeDB; DESCRIBE Student;"
 
-
-      # ---------------------------------------
-      # STEP 7
-      # ---------------------------------------
-
-      - name: Execute Student SQL
+      - name: Execute Student Program
         run: |
-
-          echo "========== STUDENT SOLUTION =========="
+          echo "======================================"
+          echo "Executing student solution.sql"
+          echo "======================================"
 
           cat solution.sql
 
-          echo "======================================="
-
           mysql \
             -h 127.0.0.1 \
             -P 3306 \
             -u root \
             -proot \
             --protocol=tcp \
-            < solution.sql
+            CollegeDB < solution.sql
 
           echo "Student SQL executed successfully."
 
-
-      # ---------------------------------------
-      # STEP 8
-      # ---------------------------------------
-
-      - name: Display Modified Student Table
+      - name: Show Modified Student Table
         run: |
-
-          echo "========== MODIFIED TABLE =========="
+          echo "======================================"
+          echo "MODIFIED STUDENT TABLE"
+          echo "======================================"
 
           mysql \
             -h 127.0.0.1 \
@@ -175,29 +117,15 @@ jobs:
             --protocol=tcp \
             -e "USE CollegeDB; DESCRIBE Student;"
 
-
-      # ---------------------------------------
-      # STEP 9
-      # ---------------------------------------
-
       - name: Run Auto Grading
         run: |
-
           chmod +x tests/test.sh
-
           ./tests/test.sh
 
-
-      # ---------------------------------------
-      # STEP 10
-      # ---------------------------------------
-
-      - name: Grading Completed
+      - name: Success
         if: success()
         run: |
-
-          echo ""
           echo "=========================================="
-          echo "🎉 PROGRAM 3 COMPLETED SUCCESSFULLY"
-          echo "🎉 ALL 6 TEST CASES PASSED"
+          echo "PROGRAM 3 COMPLETED SUCCESSFULLY"
+          echo "ALL TEST CASES PASSED"
           echo "=========================================="
