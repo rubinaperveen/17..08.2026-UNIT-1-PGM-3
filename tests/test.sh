@@ -4,43 +4,22 @@ MYSQL="mysql -h 127.0.0.1 -P 3306 -u root -proot --protocol=tcp -N -B"
 
 PASS=0
 FAIL=0
-TOTAL=6
-
-pass() {
-    echo "✅ PASS: $1"
-    PASS=$((PASS + 1))
-}
-
-fail() {
-    echo "❌ FAIL: $1"
-    FAIL=$((FAIL + 1))
-}
 
 echo "=========================================="
 echo " PROGRAM 3 - ALTER STUDENT TABLE"
 echo "=========================================="
 
-# ------------------------------------------
-# TEST 1 - CollegeDB exists
-# ------------------------------------------
+pass() {
+    echo "PASS: $1"
+    PASS=$((PASS + 1))
+}
 
-DB=$($MYSQL -e "
-SELECT COUNT(*)
-FROM INFORMATION_SCHEMA.SCHEMATA
-WHERE SCHEMA_NAME='CollegeDB';
-")
+fail() {
+    echo "FAIL: $1"
+    FAIL=$((FAIL + 1))
+}
 
-if [ "$DB" = "1" ]; then
-    pass "CollegeDB database exists"
-else
-    fail "CollegeDB database does not exist"
-fi
-
-
-# ------------------------------------------
-# TEST 2 - Student table exists
-# ------------------------------------------
-
+# Test 1
 STUDENT=$($MYSQL -e "
 SELECT COUNT(*)
 FROM INFORMATION_SCHEMA.TABLES
@@ -54,38 +33,39 @@ else
     fail "Student table does not exist"
 fi
 
-
-# ------------------------------------------
-# TEST 3 - Email VARCHAR(30)
-# ------------------------------------------
-
-EMAIL_TYPE=$($MYSQL -e "
-SELECT DATA_TYPE
+# Test 2
+EMAIL=$($MYSQL -e "
+SELECT COUNT(*)
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA='CollegeDB'
 AND TABLE_NAME='Student'
-AND COLUMN_NAME='Email';
+AND COLUMN_NAME='Email'
+AND DATA_TYPE='varchar'
+AND CHARACTER_MAXIMUM_LENGTH=30;
 ")
 
-EMAIL_LENGTH=$($MYSQL -e "
-SELECT CHARACTER_MAXIMUM_LENGTH
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA='CollegeDB'
-AND TABLE_NAME='Student'
-AND COLUMN_NAME='Email';
-")
-
-if [ "$EMAIL_TYPE" = "varchar" ] && [ "$EMAIL_LENGTH" = "30" ]; then
+if [ "$EMAIL" = "1" ]; then
     pass "Email VARCHAR(30)"
 else
-    fail "Email is not VARCHAR(30)"
+    fail "Email VARCHAR(30) is incorrect"
 fi
 
+# Test 3
+PHONE=$($MYSQL -e "
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='CollegeDB'
+AND TABLE_NAME='Student'
+AND COLUMN_NAME='PhoneNumber';
+")
 
-# ------------------------------------------
-# TEST 4 - PhoneNumber numeric
-# ------------------------------------------
+if [ "$PHONE" = "1" ]; then
+    pass "PhoneNumber column exists"
+else
+    fail "PhoneNumber column is missing"
+fi
 
+# Test 4
 PHONE_TYPE=$($MYSQL -e "
 SELECT DATA_TYPE
 FROM INFORMATION_SCHEMA.COLUMNS
@@ -94,28 +74,16 @@ AND TABLE_NAME='Student'
 AND COLUMN_NAME='PhoneNumber';
 ")
 
-if [[ "$PHONE_TYPE" == "tinyint" ||
-      "$PHONE_TYPE" == "smallint" ||
-      "$PHONE_TYPE" == "mediumint" ||
-      "$PHONE_TYPE" == "int" ||
-      "$PHONE_TYPE" == "integer" ||
-      "$PHONE_TYPE" == "bigint" ||
-      "$PHONE_TYPE" == "decimal" ||
-      "$PHONE_TYPE" == "numeric" ]]; then
+case "$PHONE_TYPE" in
+    int|integer|bigint|smallint|mediumint|tinyint|decimal|numeric)
+        pass "PhoneNumber is numeric"
+        ;;
+    *)
+        fail "PhoneNumber is not numeric"
+        ;;
+esac
 
-    pass "PhoneNumber is numeric"
-
-else
-
-    fail "PhoneNumber is not numeric"
-
-fi
-
-
-# ------------------------------------------
-# TEST 5 - Email exists once
-# ------------------------------------------
-
+# Test 5
 EMAIL_COUNT=$($MYSQL -e "
 SELECT COUNT(*)
 FROM INFORMATION_SCHEMA.COLUMNS
@@ -125,16 +93,12 @@ AND COLUMN_NAME='Email';
 ")
 
 if [ "$EMAIL_COUNT" = "1" ]; then
-    pass "Email column added correctly"
+    pass "Email exists exactly once"
 else
-    fail "Email column missing or duplicated"
+    fail "Email column problem"
 fi
 
-
-# ------------------------------------------
-# TEST 6 - PhoneNumber exists once
-# ------------------------------------------
-
+# Test 6
 PHONE_COUNT=$($MYSQL -e "
 SELECT COUNT(*)
 FROM INFORMATION_SCHEMA.COLUMNS
@@ -144,34 +108,26 @@ AND COLUMN_NAME='PhoneNumber';
 ")
 
 if [ "$PHONE_COUNT" = "1" ]; then
-    pass "PhoneNumber column added correctly"
+    pass "PhoneNumber exists exactly once"
 else
-    fail "PhoneNumber column missing or duplicated"
+    fail "PhoneNumber column problem"
 fi
-
-
-# ------------------------------------------
-# FINAL RESULT
-# ------------------------------------------
 
 echo ""
 echo "=========================================="
-echo " PROGRAM 3 RESULT"
+echo "PROGRAM 3 RESULT"
 echo "=========================================="
 
-echo "Passed : $PASS / $TOTAL"
-echo "Failed : $FAIL / $TOTAL"
-
-echo "=========================================="
+echo "Passed: $PASS / 6"
+echo "Failed: $FAIL / 6"
 
 if [ "$FAIL" -eq 0 ]; then
-
-    echo "🎉 PROGRAM 3 - ALL TEST CASES PASSED"
+    echo ""
+    echo "ALL 6 TEST CASES PASSED"
+    echo "PROGRAM 3 COMPLETED SUCCESSFULLY"
     exit 0
-
 else
-
-    echo "❌ PROGRAM 3 - SOME TEST CASES FAILED"
+    echo ""
+    echo "SOME TEST CASES FAILED"
     exit 1
-
 fi
